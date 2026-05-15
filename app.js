@@ -67,6 +67,30 @@ function initControls() {
     $("audio-samples").innerHTML = `<div class="loading"><div class="spinner"></div>Computing samples...</div>`;
     await initAudioFingerprint();
   });
+
+  $("check-custom-font")?.addEventListener("click", () => {
+    const font = $("custom-font-name")?.value.trim();
+    if (!font) {
+      setText("font-tool-status", "Enter the exact font family name first.");
+      return;
+    }
+
+    const detector = createFontDetector();
+    const ok = detector.isInstalled(font);
+    prependFontResult(font, ok);
+    setText(
+      "font-tool-status",
+      ok
+        ? `${font} was detected by canvas measurement.`
+        : `${font} was not detected. Check the exact family name and restart the browser after installation.`,
+    );
+  });
+
+  $("custom-font-name")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") $("check-custom-font")?.click();
+  });
+
+  $("scan-local-fonts")?.addEventListener("click", scanLocalFonts);
 }
 
 function initMatrixRain() {
@@ -368,7 +392,7 @@ const FONT_LIST = [
   "LilyUPC",
 ];
 
-async function initFonts() {
+function createFontDetector() {
   const canvas = document.createElement("canvas");
   canvas.width = 700;
   canvas.height = 80;
@@ -386,6 +410,70 @@ async function initFonts() {
   const isInstalled = (font) =>
     baseFonts.some((base) => Math.abs(getWidth(`"${font}",${base}`) - baseWidths[base]) > 0.01);
 
+  return { isInstalled };
+}
+
+function createFontItem(font, ok) {
+  const item = document.createElement("div");
+  item.className = `font-item${ok ? " found" : ""}`;
+
+  const name = document.createElement("span");
+  name.className = "font-name";
+  name.style.fontFamily = `"${font}", sans-serif`;
+  name.textContent = font;
+
+  const badge = document.createElement("span");
+  badge.className = `font-badge ${ok ? "found" : "not-found"}`;
+  badge.textContent = ok ? "FOUND" : "N/A";
+
+  item.append(name, badge);
+  return item;
+}
+
+function prependFontResult(font, ok) {
+  const list = $("font-list");
+  if (!list) return;
+  const existing = Array.from(list.querySelectorAll(".font-name")).find(
+    (item) => item.textContent.toLowerCase() === font.toLowerCase(),
+  );
+  if (existing) {
+    existing.closest(".font-item")?.remove();
+  }
+  list.prepend(createFontItem(font, ok));
+}
+
+async function scanLocalFonts() {
+  if (!("queryLocalFonts" in window)) {
+    setText("font-tool-status", "Local Font Access API is not available in this browser. Use the exact-name check instead.");
+    return;
+  }
+
+  try {
+    setText("font-tool-status", "Waiting for browser permission to read local font names...");
+    const localFonts = await window.queryLocalFonts();
+    const families = [...new Set(localFonts.map((font) => font.family).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b),
+    );
+    const list = $("font-list");
+    list.innerHTML = "";
+    families.forEach((font) => list.appendChild(createFontItem(font, true)));
+
+    setText("font-installed", families.length);
+    setText("font-total-count", families.length);
+    setText("font-count", String(families.length).padStart(2, "0"));
+    setText("font-ratio", "100%");
+    $("font-progress").style.width = "100%";
+    setText("font-progress-pct", "100%");
+    setText("font-progress-label", "Local font access scan complete");
+    setText("font-tool-status", `Loaded ${families.length} local font families from the browser permission API.`);
+  } catch (error) {
+    setText("font-tool-status", `Local font scan failed or was denied: ${error.message}`);
+  }
+}
+
+async function initFonts() {
+  const detector = createFontDetector();
+
   const list = $("font-list");
   list.innerHTML = "";
   let found = 0;
@@ -394,23 +482,10 @@ async function initFonts() {
 
   for (let i = 0; i < FONT_LIST.length; i += 1) {
     const font = FONT_LIST[i];
-    const ok = isInstalled(font);
+    const ok = detector.isInstalled(font);
     if (ok) found += 1;
 
-    const item = document.createElement("div");
-    item.className = `font-item${ok ? " found" : ""}`;
-
-    const name = document.createElement("span");
-    name.className = "font-name";
-    name.style.fontFamily = `"${font}", sans-serif`;
-    name.textContent = font;
-
-    const badge = document.createElement("span");
-    badge.className = `font-badge ${ok ? "found" : "not-found"}`;
-    badge.textContent = ok ? "FOUND" : "N/A";
-
-    item.append(name, badge);
-    list.appendChild(item);
+    list.appendChild(createFontItem(font, ok));
 
     const pct = Math.round(((i + 1) / FONT_LIST.length) * 100);
     $("font-progress").style.width = `${pct}%`;

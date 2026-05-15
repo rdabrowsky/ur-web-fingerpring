@@ -171,6 +171,20 @@
       <section id="tab-fonts" class="tab-content">
         <div class="info-notice">
           Font detection uses the Canvas API: it renders text and compares widths against baseline font families. It does not require file system access.
+          The default scan checks a predefined list. To see newly installed fonts, test the exact family name or use local font access if your browser supports it.
+        </div>
+
+        <h2 class="section-label">Custom font check</h2>
+        <div class="font-tools">
+          <label class="font-field">
+            <span>Font family</span>
+            <input id="custom-font-name" type="text" placeholder="e.g. Aptos, Inter, JetBrains Mono" />
+          </label>
+          <button class="action-btn" id="check-custom-font" type="button">Check font</button>
+          <button class="action-btn" id="scan-local-fonts" type="button">Scan local fonts</button>
+        </div>
+        <div class="tooltip" id="font-tool-status">
+          If a font was installed while the browser was open, restart the browser first so the renderer can see it.
         </div>
 
         <div class="grid-3 hero-stats">
