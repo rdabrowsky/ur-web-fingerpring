@@ -89,8 +89,6 @@ function initControls() {
   $("custom-font-name")?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") $("check-custom-font")?.click();
   });
-
-  $("scan-local-fonts")?.addEventListener("click", scanLocalFonts);
 }
 
 function initMatrixRain() {
@@ -413,18 +411,57 @@ function createFontDetector() {
   canvas.width = 700;
   canvas.height = 80;
   const ctx = canvas.getContext("2d");
-  const testString = "mmmmmmmmmmlliWWW BrowserFingerprint";
-  const fontSize = 18;
+  const testStrings = [
+    "mmmmmmmmmmlliWWW BrowserFingerprint",
+    "abcdefghiABCDEFGHI 0123456789",
+    "The quick brown fox jumps over the lazy dog",
+  ];
+  const fontSizes = [16, 24, 32];
   const baseFonts = ["monospace", "sans-serif", "serif"];
 
-  const getWidth = (font) => {
-    ctx.font = `${fontSize}px ${font}`;
-    return ctx.measureText(testString).width;
+  const getCanvasSignature = (fontStack) => {
+    const values = [];
+    fontSizes.forEach((size) => {
+      testStrings.forEach((sample) => {
+        ctx.font = `${size}px ${fontStack}`;
+        values.push(Number(ctx.measureText(sample).width.toFixed(2)));
+      });
+    });
+    return values;
   };
 
-  const baseWidths = Object.fromEntries(baseFonts.map((font) => [font, getWidth(font)]));
-  const isInstalled = (font) =>
-    baseFonts.some((base) => Math.abs(getWidth(`"${font}",${base}`) - baseWidths[base]) > 0.01);
+  const domProbe = document.createElement("span");
+  domProbe.textContent = testStrings.join(" ");
+  domProbe.style.cssText = [
+    "position:absolute",
+    "left:-99999px",
+    "top:-99999px",
+    "visibility:hidden",
+    "white-space:nowrap",
+    "font-size:72px",
+    "font-weight:400",
+    "font-style:normal",
+    "letter-spacing:0",
+  ].join(";");
+  document.body.appendChild(domProbe);
+
+  const getDomSignature = (fontStack) => {
+    domProbe.style.fontFamily = fontStack;
+    return `${domProbe.offsetWidth}:${domProbe.offsetHeight}`;
+  };
+
+  const canvasBases = Object.fromEntries(baseFonts.map((font) => [font, getCanvasSignature(font)]));
+  const domBases = Object.fromEntries(baseFonts.map((font) => [font, getDomSignature(font)]));
+  const differsFromCanvasBase = (candidate, base) =>
+    getCanvasSignature(candidate).some((width, index) => Math.abs(width - canvasBases[base][index]) > 0.01);
+  const differsFromDomBase = (candidate, base) => getDomSignature(candidate) !== domBases[base];
+  const isInstalled = (font) => {
+    const escapedFont = `"${font.replace(/"/g, '\\"')}"`;
+    return baseFonts.some((base) => {
+      const candidate = `${escapedFont},${base}`;
+      return differsFromCanvasBase(candidate, base) || differsFromDomBase(candidate, base);
+    });
+  };
 
   return { isInstalled };
 }
@@ -458,74 +495,6 @@ function prependFontResult(font, ok) {
   list.prepend(createFontItem(font, ok));
 }
 
-function renderCanvasFontScan(fonts, statusPrefix) {
-  const detector = createFontDetector();
-  const list = $("font-list");
-  list.innerHTML = "";
-
-  let found = 0;
-  const uniqueFonts = [...new Set(fonts)].sort((a, b) => a.localeCompare(b));
-  uniqueFonts.forEach((font) => {
-    const ok = detector.isInstalled(font);
-    if (ok) found += 1;
-    list.appendChild(createFontItem(font, ok));
-  });
-
-  setText("font-installed", found);
-  setText("font-total-count", uniqueFonts.length);
-  setText("font-count", String(found).padStart(2, "0"));
-  setText("font-ratio", uniqueFonts.length ? `${Math.round((found / uniqueFonts.length) * 100)}%` : "0%");
-  $("font-progress").style.width = "100%";
-  setText("font-progress-pct", "100%");
-  setText("font-progress-label", "Canvas font candidate scan complete");
-  setText(
-    "font-tool-status",
-    `${statusPrefix} Canvas fallback found ${found} of ${uniqueFonts.length} known font names. Full local enumeration still requires browser support and permission.`,
-  );
-}
-
-async function scanLocalFonts() {
-  if (!("queryLocalFonts" in window)) {
-    renderCanvasFontScan(
-      FONT_LIST,
-      "Local Font Access API is not available in this browser.",
-    );
-    return;
-  }
-
-  try {
-    setText("font-tool-status", "Waiting for browser permission to read local font names...");
-    const localFonts = await window.queryLocalFonts();
-    const names = localFonts.flatMap((font) => [font.family, font.fullName, font.postscriptName]).filter(Boolean);
-    const families = [...new Set(names)].sort((a, b) => a.localeCompare(b));
-    if (families.length === 0) {
-      renderCanvasFontScan(
-        FONT_LIST,
-        "Permission was granted, but the browser returned 0 font records.",
-      );
-      return;
-    }
-
-    const list = $("font-list");
-    list.innerHTML = "";
-    families.forEach((font) => list.appendChild(createFontItem(font, true)));
-
-    setText("font-installed", families.length);
-    setText("font-total-count", families.length);
-    setText("font-count", String(families.length).padStart(2, "0"));
-    setText("font-ratio", "100%");
-    $("font-progress").style.width = "100%";
-    setText("font-progress-pct", "100%");
-    setText("font-progress-label", "Local font access scan complete");
-    setText(
-      "font-tool-status",
-      `Loaded ${families.length} local font names from ${localFonts.length} browser font records.`,
-    );
-  } catch (error) {
-    setText("font-tool-status", `Local font scan failed or was denied: ${error.message}`);
-  }
-}
-
 async function initFonts() {
   const detector = createFontDetector();
 
@@ -545,7 +514,7 @@ async function initFonts() {
     const pct = Math.round(((i + 1) / FONT_LIST.length) * 100);
     $("font-progress").style.width = `${pct}%`;
     setText("font-progress-pct", `${pct}%`);
-    setText("font-progress-label", `Testowanie: ${font}`);
+    setText("font-progress-label", `Testing: ${font}`);
     setText("font-installed", found);
     setText("font-count", String(found).padStart(2, "0"));
     setText("font-ratio", `${Math.round((found / (i + 1)) * 100)}%`);
@@ -553,8 +522,14 @@ async function initFonts() {
     if (i % 10 === 0) await new Promise((resolve) => window.setTimeout(resolve, 0));
   }
 
-  setText("font-progress-label", "Skanowanie zakończone");
+  setText("font-progress-label", "Template scan complete");
   setText("font-ratio", `${Math.round((found / FONT_LIST.length) * 100)}%`);
+  setText(
+    "font-tool-status",
+    found
+      ? `Template scan detected ${found} matching font names.`
+      : "Template scan detected 0 fonts. Your browser may be normalizing font metrics or blocking font fingerprinting.",
+  );
 }
 
 function drawFingerprintCanvas(canvas) {
