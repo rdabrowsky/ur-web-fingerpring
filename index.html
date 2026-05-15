@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Matrix-style browser fingerprint dashboard: hardware, software, fonts, canvas and audio context fingerprinting."
+    />
+    <title>Browser Fingerprint Matrix</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <canvas id="matrix-rain" aria-hidden="true"></canvas>
+
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="10" cy="10" r="7" />
+            <circle cx="10" cy="10" r="3" />
+            <line x1="10" y1="3" x2="10" y2="1" />
+            <line x1="10" y1="17" x2="10" y2="19" />
+            <line x1="3" y1="10" x2="1" y2="10" />
+            <line x1="17" y1="10" x2="19" y2="10" />
+          </svg>
+        </div>
+        <div>
+          <div class="logo-text">fingerprint.sys</div>
+          <div class="logo-sub">browser identity analysis</div>
+        </div>
+      </div>
+      <div class="fp-hash">
+        <div class="status-dot"></div>
+        <span id="main-hash">computing...</span>
+        <button class="icon-btn" id="copy-main-hash" type="button">copy</button>
+      </div>
+    </header>
+
+    <nav class="tabs-bar" aria-label="Kategorie fingerprintingu">
+      <button class="tab-btn active" data-tab="software" type="button">
+        <span class="tab-num">01</span>Software
+      </button>
+      <button class="tab-btn" data-tab="hardware" type="button">
+        <span class="tab-num">02</span>Hardware
+      </button>
+      <button class="tab-btn" data-tab="fonts" type="button">
+        <span class="tab-num" id="font-count">03</span>Fonts
+      </button>
+      <button class="tab-btn" data-tab="canvas" type="button">
+        <span class="tab-num">04</span>Canvas FP
+      </button>
+      <button class="tab-btn" data-tab="audio" type="button">
+        <span class="tab-num">05</span>Audio FP
+      </button>
+    </nav>
+
+    <main>
+      <section id="tab-hardware" class="tab-content">
+        <div class="grid-3 hero-stats">
+          <article class="stat-block"><div class="stat-val" id="hw-cores">-</div><div class="stat-label">CPU Cores</div></article>
+          <article class="stat-block"><div class="stat-val" id="hw-mem">-</div><div class="stat-label">RAM est.</div></article>
+          <article class="stat-block"><div class="stat-val" id="hw-dpr">-</div><div class="stat-label">Pixel Ratio</div></article>
+          <article class="stat-block"><div class="stat-val" id="hw-touch">-</div><div class="stat-label">Touch Points</div></article>
+          <article class="stat-block"><div class="stat-val" id="hw-depth">-</div><div class="stat-label">Color Depth</div></article>
+          <article class="stat-block"><div class="stat-val" id="hw-conn">-</div><div class="stat-label">Connection</div></article>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <h2 class="section-label">Display</h2>
+            <div class="card">
+              <div class="row"><span class="row-key">Screen resolution</span><span class="row-val accent" id="hw-screen">-</span></div>
+              <div class="row"><span class="row-key">Available area</span><span class="row-val" id="hw-avail">-</span></div>
+              <div class="row"><span class="row-key">Window inner</span><span class="row-val" id="hw-window">-</span></div>
+              <div class="row"><span class="row-key">Color depth</span><span class="row-val" id="hw-depth2">-</span></div>
+              <div class="row"><span class="row-key">Pixel density</span><span class="row-val green" id="hw-dpr2">-</span></div>
+              <div class="row"><span class="row-key">Orientation</span><span class="row-val" id="hw-orient">-</span></div>
+            </div>
+
+            <h2 class="section-label spaced">Network</h2>
+            <div class="card">
+              <div class="row"><span class="row-key">Connection type</span><span class="row-val accent" id="hw-nettype">-</span></div>
+              <div class="row"><span class="row-key">Effective type</span><span class="row-val" id="hw-efftype">-</span></div>
+              <div class="row"><span class="row-key">Downlink</span><span class="row-val green" id="hw-downlink">-</span></div>
+              <div class="row"><span class="row-key">RTT</span><span class="row-val" id="hw-rtt">-</span></div>
+              <div class="row"><span class="row-key">Save data mode</span><span class="row-val" id="hw-savedata">-</span></div>
+            </div>
+          </div>
+
+          <div>
+            <h2 class="section-label">GPU / WebGL</h2>
+            <div class="card">
+              <div class="row"><span class="row-key">Renderer</span><span class="row-val" id="hw-gpu">-</span></div>
+              <div class="row"><span class="row-key">Vendor</span><span class="row-val amber" id="hw-gpuv">-</span></div>
+              <div class="row"><span class="row-key">Unmasked renderer</span><span class="row-val" id="hw-gpuu">-</span></div>
+              <div class="row"><span class="row-key">Unmasked vendor</span><span class="row-val" id="hw-gpuuv">-</span></div>
+              <div class="row"><span class="row-key">WebGL version</span><span class="row-val accent" id="hw-webgl">-</span></div>
+              <div class="row"><span class="row-key">Max texture size</span><span class="row-val" id="hw-texsize">-</span></div>
+              <div class="row"><span class="row-key">Max viewport</span><span class="row-val" id="hw-viewport">-</span></div>
+              <div class="row"><span class="row-key">GLSL version</span><span class="row-val" id="hw-glsl">-</span></div>
+            </div>
+
+            <h2 class="section-label spaced">CPU / Memory</h2>
+            <div class="card">
+              <div class="row"><span class="row-key">Logical cores</span><span class="row-val accent" id="hw-cores2">-</span></div>
+              <div class="row"><span class="row-key">Device memory</span><span class="row-val green" id="hw-mem2">-</span></div>
+              <div class="row"><span class="row-key">Max touch points</span><span class="row-val" id="hw-touch2">-</span></div>
+              <div class="row"><span class="row-key">Battery API</span><span class="row-val" id="hw-battery">-</span></div>
+              <div class="row"><span class="row-key">Vibration API</span><span class="row-val" id="hw-vibration">-</span></div>
+              <div class="row"><span class="row-key">Share API</span><span class="row-val" id="hw-share">-</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-software" class="tab-content active">
+        <h2 class="section-label">User Agent</h2>
+        <div class="ua-string" id="sw-ua">-</div>
+        <div class="tooltip" id="sw-ua-parsed"></div>
+
+        <div class="grid-2">
+          <div>
+            <h2 class="section-label">Browser</h2>
+            <div class="card">
+              <div class="row"><span class="row-key">App name</span><span class="row-val" id="sw-appname">-</span></div>
+              <div class="row"><span class="row-key">App version</span><span class="row-val" id="sw-appver">-</span></div>
+              <div class="row"><span class="row-key">Product</span><span class="row-val accent" id="sw-product">-</span></div>
+              <div class="row"><span class="row-key">Vendor</span><span class="row-val" id="sw-vendor">-</span></div>
+              <div class="row"><span class="row-key">Language</span><span class="row-val green" id="sw-lang">-</span></div>
+              <div class="row"><span class="row-key">Languages</span><span class="row-val" id="sw-langs">-</span></div>
+              <div class="row"><span class="row-key">Cookies</span><span class="row-val" id="sw-cookies">-</span></div>
+              <div class="row"><span class="row-key">Do Not Track</span><span class="row-val" id="sw-dnt">-</span></div>
+              <div class="row"><span class="row-key">Java enabled</span><span class="row-val" id="sw-java">-</span></div>
+            </div>
+
+            <h2 class="section-label spaced">Timezone & Region</h2>
+            <div class="card">
+              <div class="row"><span class="row-key">Timezone</span><span class="row-val accent" id="sw-tz">-</span></div>
+              <div class="row"><span class="row-key">UTC offset</span><span class="row-val" id="sw-utc">-</span></div>
+              <div class="row"><span class="row-key">Local time</span><span class="row-val green" id="sw-time">-</span></div>
+              <div class="row"><span class="row-key">Calendar</span><span class="row-val" id="sw-cal">-</span></div>
+              <div class="row"><span class="row-key">Number format</span><span class="row-val" id="sw-numfmt">-</span></div>
+            </div>
+          </div>
+
+          <div>
+            <h2 class="section-label">Platform</h2>
+            <div class="card">
+              <div class="row"><span class="row-key">Platform</span><span class="row-val amber" id="sw-platform">-</span></div>
+              <div class="row"><span class="row-key">OS hint</span><span class="row-val" id="sw-os">-</span></div>
+              <div class="row"><span class="row-key">CPU class</span><span class="row-val" id="sw-cpu">-</span></div>
+              <div class="row"><span class="row-key">Online status</span><span class="row-val green" id="sw-online">-</span></div>
+              <div class="row"><span class="row-key">PDF viewer</span><span class="row-val" id="sw-pdf">-</span></div>
+            </div>
+
+            <h2 class="section-label spaced">APIs & Features</h2>
+            <div class="card" id="sw-apis">
+              <div class="loading"><div class="spinner"></div>Detecting APIs...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-fonts" class="tab-content">
+        <div class="info-notice">
+          Font detection uses the Canvas API: it renders text and compares widths against baseline font families. It does not require file system access.
+        </div>
+
+        <div class="grid-3 hero-stats">
+          <article class="stat-block"><div class="stat-val green" id="font-installed">-</div><div class="stat-label">Zainstalowane</div></article>
+          <article class="stat-block"><div class="stat-val" id="font-total-count">-</div><div class="stat-label">Sprawdzone</div></article>
+          <article class="stat-block"><div class="stat-val amber" id="font-ratio">-</div><div class="stat-label">Wykrywalność</div></article>
+        </div>
+
+        <h2 class="section-label">Postęp skanowania</h2>
+        <div class="progress-panel">
+          <div class="progress-head">
+            <span id="font-progress-label">Inicjalizacja...</span>
+            <span id="font-progress-pct">0%</span>
+          </div>
+          <div class="progress-bar-wrap"><div class="progress-bar green" id="font-progress"></div></div>
+        </div>
+
+        <h2 class="section-label">Wykryte czcionki</h2>
+        <div class="font-grid" id="font-list">
+          <div class="loading"><div class="spinner"></div>Skanowanie fontów...</div>
+        </div>
+      </section>
+
+      <section id="tab-canvas" class="tab-content">
+        <div class="info-notice">
+          Canvas fingerprinting renders text, gradients, shapes and blending operations, then hashes the resulting pixels. Different systems, GPU drivers and fonts can produce slightly different results.
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <h2 class="section-label">Canvas 2D Fingerprint</h2>
+            <div class="canvas-wrap">
+              <canvas id="fp-canvas" width="500" height="200"></canvas>
+              <div class="hash-display"><span class="hash-label">SHA</span><span id="canvas-hash">computing...</span><button class="copy-hash" data-copy-target="canvas-hash" type="button">copy</button></div>
+            </div>
+
+            <h2 class="section-label">Parametry renderingu</h2>
+            <div class="card">
+              <div class="row"><span class="row-key">Canvas width</span><span class="row-val">500 px</span></div>
+              <div class="row"><span class="row-key">Canvas height</span><span class="row-val">200 px</span></div>
+              <div class="row"><span class="row-key">Unique pixels</span><span class="row-val accent" id="cv-pixels">-</span></div>
+              <div class="row"><span class="row-key">Alpha channel</span><span class="row-val green" id="cv-alpha">-</span></div>
+              <div class="row"><span class="row-key">Composite ops</span><span class="row-val">8 tested</span></div>
+              <div class="row"><span class="row-key">Text rendering</span><span class="row-val amber" id="cv-text">-</span></div>
+            </div>
+          </div>
+
+          <div>
+            <h2 class="section-label">WebGL Fingerprint</h2>
+            <div class="canvas-wrap">
+              <canvas id="webgl-canvas" width="500" height="200"></canvas>
+              <div class="hash-display"><span class="hash-label">SHA</span><span id="webgl-hash">computing...</span><button class="copy-hash" data-copy-target="webgl-hash" type="button">copy</button></div>
+            </div>
+
+            <h2 class="section-label">WebGL Parameters</h2>
+            <div class="card" id="webgl-params">
+              <div class="loading"><div class="spinner"></div>Pobieranie parametrów WebGL...</div>
+            </div>
+          </div>
+        </div>
+
+        <h2 class="section-label spaced">Decomposed Channels</h2>
+        <div class="channel-grid">
+          <div class="canvas-wrap channel-card"><canvas id="ch-r" width="120" height="60"></canvas><span class="red">RED</span></div>
+          <div class="canvas-wrap channel-card"><canvas id="ch-g" width="120" height="60"></canvas><span class="green">GREEN</span></div>
+          <div class="canvas-wrap channel-card"><canvas id="ch-b" width="120" height="60"></canvas><span class="accent">BLUE</span></div>
+          <div class="canvas-wrap channel-card"><canvas id="ch-a" width="120" height="60"></canvas><span>ALPHA</span></div>
+        </div>
+      </section>
+
+      <section id="tab-audio" class="tab-content">
+        <div class="info-notice">
+          Audio context fingerprinting processes a generated signal through oscillator and DSP nodes. Small differences in Web Audio API implementations affect sample values and the final hash.
+        </div>
+
+        <div class="grid-3 hero-stats">
+          <article class="stat-block"><div class="stat-val purple" id="aud-hash-short">-</div><div class="stat-label">Audio Hash</div></article>
+          <article class="stat-block"><div class="stat-val" id="aud-sr">-</div><div class="stat-label">Sample Rate</div></article>
+          <article class="stat-block"><div class="stat-val accent" id="aud-bufsize">-</div><div class="stat-label">Buffer Size</div></article>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <h2 class="section-label">Audio Context Info</h2>
+            <div class="card">
+              <div class="row"><span class="row-key">Sample rate</span><span class="row-val accent" id="aud-sr2">-</span></div>
+              <div class="row"><span class="row-key">Max channel count</span><span class="row-val" id="aud-channels">-</span></div>
+              <div class="row"><span class="row-key">State</span><span class="row-val green" id="aud-state">-</span></div>
+              <div class="row"><span class="row-key">Base latency</span><span class="row-val" id="aud-latency">-</span></div>
+              <div class="row"><span class="row-key">Output latency</span><span class="row-val" id="aud-outlat">-</span></div>
+              <div class="row"><span class="row-key">Oscillator type</span><span class="row-val amber">triangle</span></div>
+              <div class="row"><span class="row-key">Frequency</span><span class="row-val">10000 Hz</span></div>
+              <div class="row"><span class="row-key">Processing nodes</span><span class="row-val">osc + compressor</span></div>
+            </div>
+
+            <h2 class="section-label spaced">Full Fingerprint Hash</h2>
+            <div class="hash-display stack"><span class="hash-label">AUDIO FINGERPRINT</span><span id="aud-full-hash">computing...</span><button class="copy-hash" data-copy-target="aud-full-hash" type="button">copy</button></div>
+          </div>
+
+          <div>
+            <h2 class="section-label">Frequency Spectrum</h2>
+            <div class="canvas-wrap"><canvas id="freq-canvas" width="600" height="100"></canvas></div>
+
+            <h2 class="section-label spaced">Raw Sample Data</h2>
+            <div class="audio-samples" id="audio-samples">
+              <div class="loading"><div class="spinner"></div>Computing samples...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
