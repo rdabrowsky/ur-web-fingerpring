@@ -451,11 +451,26 @@ async function scanLocalFonts() {
   try {
     setText("font-tool-status", "Waiting for browser permission to read local font names...");
     const localFonts = await window.queryLocalFonts();
-    const families = [...new Set(localFonts.map((font) => font.family).filter(Boolean))].sort((a, b) =>
-      a.localeCompare(b),
-    );
+    const names = localFonts.flatMap((font) => [font.family, font.fullName, font.postscriptName]).filter(Boolean);
+    const families = [...new Set(names)].sort((a, b) => a.localeCompare(b));
     const list = $("font-list");
     list.innerHTML = "";
+
+    if (families.length === 0) {
+      setText("font-installed", 0);
+      setText("font-total-count", 0);
+      setText("font-count", "00");
+      setText("font-ratio", "0%");
+      $("font-progress").style.width = "100%";
+      setText("font-progress-pct", "100%");
+      setText("font-progress-label", "Local font access returned no font names");
+      setText(
+        "font-tool-status",
+        `Permission was granted, but the browser returned 0 fonts. Try Chrome/Edge desktop, restart the browser after installing fonts, or use the exact-name check.`,
+      );
+      return;
+    }
+
     families.forEach((font) => list.appendChild(createFontItem(font, true)));
 
     setText("font-installed", families.length);
@@ -465,7 +480,10 @@ async function scanLocalFonts() {
     $("font-progress").style.width = "100%";
     setText("font-progress-pct", "100%");
     setText("font-progress-label", "Local font access scan complete");
-    setText("font-tool-status", `Loaded ${families.length} local font families from the browser permission API.`);
+    setText(
+      "font-tool-status",
+      `Loaded ${families.length} local font names from ${localFonts.length} browser font records.`,
+    );
   } catch (error) {
     setText("font-tool-status", `Local font scan failed or was denied: ${error.message}`);
   }
