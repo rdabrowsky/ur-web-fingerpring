@@ -349,9 +349,25 @@ const FONT_LIST = [
   "Osaka",
   "Ubuntu",
   "DejaVu Sans",
+  "DejaVu Serif",
+  "DejaVu Sans Mono",
+  "Liber",
   "Liberation Sans",
   "Liberation Serif",
   "Liberation Mono",
+  "Liberation Sans Narrow",
+  "Liberation Mono Regular",
+  "Liberation Serif Regular",
+  "Liberation Sans Regular",
+  "Aptos",
+  "Aptos Display",
+  "Aptos Mono",
+  "Cascadia Code",
+  "Cascadia Mono",
+  "Bahnschrift",
+  "Cascadia Code PL",
+  "Cascadia Mono PL",
+  "Cascadia Code SemiBold",
   "Roboto",
   "Open Sans",
   "Lato",
@@ -442,9 +458,38 @@ function prependFontResult(font, ok) {
   list.prepend(createFontItem(font, ok));
 }
 
+function renderCanvasFontScan(fonts, statusPrefix) {
+  const detector = createFontDetector();
+  const list = $("font-list");
+  list.innerHTML = "";
+
+  let found = 0;
+  const uniqueFonts = [...new Set(fonts)].sort((a, b) => a.localeCompare(b));
+  uniqueFonts.forEach((font) => {
+    const ok = detector.isInstalled(font);
+    if (ok) found += 1;
+    list.appendChild(createFontItem(font, ok));
+  });
+
+  setText("font-installed", found);
+  setText("font-total-count", uniqueFonts.length);
+  setText("font-count", String(found).padStart(2, "0"));
+  setText("font-ratio", uniqueFonts.length ? `${Math.round((found / uniqueFonts.length) * 100)}%` : "0%");
+  $("font-progress").style.width = "100%";
+  setText("font-progress-pct", "100%");
+  setText("font-progress-label", "Canvas font candidate scan complete");
+  setText(
+    "font-tool-status",
+    `${statusPrefix} Canvas fallback found ${found} of ${uniqueFonts.length} known font names. Full local enumeration still requires browser support and permission.`,
+  );
+}
+
 async function scanLocalFonts() {
   if (!("queryLocalFonts" in window)) {
-    setText("font-tool-status", "Local Font Access API is not available in this browser. Use the exact-name check instead.");
+    renderCanvasFontScan(
+      FONT_LIST,
+      "Local Font Access API is not available in this browser.",
+    );
     return;
   }
 
@@ -453,24 +498,16 @@ async function scanLocalFonts() {
     const localFonts = await window.queryLocalFonts();
     const names = localFonts.flatMap((font) => [font.family, font.fullName, font.postscriptName]).filter(Boolean);
     const families = [...new Set(names)].sort((a, b) => a.localeCompare(b));
-    const list = $("font-list");
-    list.innerHTML = "";
-
     if (families.length === 0) {
-      setText("font-installed", 0);
-      setText("font-total-count", 0);
-      setText("font-count", "00");
-      setText("font-ratio", "0%");
-      $("font-progress").style.width = "100%";
-      setText("font-progress-pct", "100%");
-      setText("font-progress-label", "Local font access returned no font names");
-      setText(
-        "font-tool-status",
-        `Permission was granted, but the browser returned 0 fonts. Try Chrome/Edge desktop, restart the browser after installing fonts, or use the exact-name check.`,
+      renderCanvasFontScan(
+        FONT_LIST,
+        "Permission was granted, but the browser returned 0 font records.",
       );
       return;
     }
 
+    const list = $("font-list");
+    list.innerHTML = "";
     families.forEach((font) => list.appendChild(createFontItem(font, true)));
 
     setText("font-installed", families.length);
